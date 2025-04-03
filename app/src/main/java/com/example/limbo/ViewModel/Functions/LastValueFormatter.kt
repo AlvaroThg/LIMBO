@@ -1,4 +1,4 @@
-package com.example.limbo.network
+package com.example.limbo.ViewModel.Functions
 
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.formatter.ValueFormatter

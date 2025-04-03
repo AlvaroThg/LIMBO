@@ -1,4 +1,4 @@
-package com.example.limbo.network
+package com.example.limbo.Model.Objects
 
 import com.google.gson.annotations.SerializedName
 

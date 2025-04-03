@@ -1,4 +1,4 @@
-package com.example.limbo.network
+package com.example.limbo.Model.Apis
 
 
 import retrofit2.Retrofit
