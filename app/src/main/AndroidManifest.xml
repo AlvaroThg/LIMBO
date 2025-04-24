@@ -21,6 +21,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".Views.BankDetailsActivity"
+            android:exported="false">
+
+        </activity>
+
+        <activity
+            android:name=".Views.GraficoView"
+            android:exported="false">
+
+        </activity>
     </application>
 
 </manifest>

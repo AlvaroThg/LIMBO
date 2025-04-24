@@ -34,37 +34,78 @@ class graficoUSDTBOB(private val lineChart: LineChart) {
             setBackgroundColor(Color.BLACK)
             setDrawGridBackground(false)
             setDrawBorders(false)
-            setViewPortOffsets(135f, 160f, 150f, 180f)
+
+            // Ajusta los márgenes para que sean proporcionales al tamaño del gráfico
+            // en lugar de valores fijos
+            val width = lineChart.width
+            val height = lineChart.height
+            if (width > 0 && height > 0) {
+                setViewPortOffsets(
+                    width * 0.1f,  // 10% del ancho por la izquierda
+                    height * 0.1f, // 10% del alto por arriba
+                    width * 0.1f,  // 10% del ancho por la derecha
+                    height * 0.15f // 15% del alto por abajo (para etiquetas X)
+                )
+            } else {
+                // Si aún no tenemos dimensiones, usar postDelayed para aplicar después
+                post {
+                    val w = lineChart.width
+                    val h = lineChart.height
+                    if (w > 0 && h > 0) {
+                        setViewPortOffsets(
+                            w * 0.1f,
+                            h * 0.1f,
+                            w * 0.1f,
+                            h * 0.15f
+                        )
+                        invalidate()
+                    }
+                }
+            }
+
             description.text = "Precio USDT/BOB (P2P)"
-            description.textSize = 14f
+            description.textSize = 12f // Reducir tamaño de texto
             description.textColor = Color.WHITE
         }
 
+        // Ajustar tamaño de texto en los ejes
         lineChart.axisLeft.apply {
-            textSize = 14f
+            textSize = 10f // Texto más pequeño
             textColor = Color.WHITE
             setDrawGridLines(true)
             gridColor = Color.WHITE
-            gridLineWidth = 1f
+            gridLineWidth = 0.5f // Líneas más finas
             axisLineColor = Color.WHITE
-            axisLineWidth = 2f
+            axisLineWidth = 1f // Línea más fina
         }
 
         lineChart.xAxis.apply {
             position = XAxis.XAxisPosition.BOTTOM
-            textSize = 14f
+            textSize = 10f // Texto más pequeño
             textColor = Color.WHITE
             setDrawGridLines(false)
             axisLineColor = Color.WHITE
-            axisLineWidth = 2f
+            axisLineWidth = 1f // Línea más fina
         }
 
         lineChart.legend.apply {
-            textSize = 16f
+            textSize = 12f // Texto más pequeño
             textColor = Color.WHITE
             form = Legend.LegendForm.LINE
-            formSize = 20f
+            formSize = 10f // Símbolos más pequeños
+            // Colocar la leyenda en la parte superior para ahorrar espacio
+            verticalAlignment = Legend.LegendVerticalAlignment.TOP
+            horizontalAlignment = Legend.LegendHorizontalAlignment.RIGHT
         }
+
+        // Desactivar el eje derecho ya que no lo usamos
+        lineChart.axisRight.isEnabled = false
+
+        // Permitir pellizco para zoom
+        lineChart.setPinchZoom(true)
+
+        // Establecer el mínimo visible de puntos
+        lineChart.setVisibleXRangeMinimum(6f)
     }
 
     public fun startUpdatingChart() {
@@ -116,14 +157,15 @@ class graficoUSDTBOB(private val lineChart: LineChart) {
 
     public fun createDataSet(entries: List<Entry>, label: String, color: Int) = LineDataSet(entries, label).apply {
         this.color = color
-        lineWidth = 4f
+        lineWidth = 2f // Línea más delgada
         setDrawCircles(true)
-        circleRadius = 3f
-        setDrawValues(true)
-        valueTextSize = 14f
-        valueTextColor = Color.WHITE
+        circleRadius = 2f // Círculos más pequeños
+        setDrawValues(false) // No mostrar valores para evitar amontonamiento
+        // Si necesitas mostrar valores, usa:
+        // setDrawValues(true)
+        // valueTextSize = 8f
+        // valueTextColor = Color.WHITE
     }
-
     fun stopUpdating() {
         handler.removeCallbacksAndMessages(null)
     }
