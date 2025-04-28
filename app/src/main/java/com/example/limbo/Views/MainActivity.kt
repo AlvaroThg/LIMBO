@@ -29,7 +29,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Initialize the chart (now smaller)
+        // Initialize the chart
         lineChart = findViewById(R.id.lineChart)
         graficoUSDTBOB = graficoUSDTBOB(lineChart)
         graficoUSDTBOB.initChart()
@@ -55,7 +55,8 @@ class MainActivity : AppCompatActivity() {
         val noticias = listOf(
             Noticia("BNB", "El Banco BNB realizó cambios en la rúbrica de los límites"),
             Noticia("BISA", "El Banco Bisa reanudó las compras por internet para nuevos usuarios"),
-            Noticia("ECO", "El Banco Económico aumentó sus límites y cambió su modalidad")
+            Noticia("ECO", "El Banco Económico aumentó sus límites y cambió su modalidad"),
+            Noticia("SOL", "El Banco Sol cambió su modalidad de Mensual a Semanal")
         )
 
         noticiasAdapter = NoticiasAdapter(noticias)
@@ -118,6 +119,7 @@ class NoticiasAdapter(private val noticias: List<Noticia>) :
     class ViewHolder(view: android.view.View) : RecyclerView.ViewHolder(view) {
         val tvBanco: TextView = view.findViewById(R.id.tvBanco)
         val tvDescripcion: TextView = view.findViewById(R.id.tvDescripcion)
+        val ivNotificationIcon: ImageView? = view.findViewById(R.id.ivNotificationIcon)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -128,8 +130,29 @@ class NoticiasAdapter(private val noticias: List<Noticia>) :
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val noticia = noticias[position]
+
+        // Set bank name with appropriate color
         holder.tvBanco.text = noticia.banco
+        when(noticia.banco) {
+            "BNB" -> holder.tvBanco.setTextColor(holder.itemView.context.getColor(R.color.green_accent))
+            "BISA" -> holder.tvBanco.setTextColor(holder.itemView.context.getColor(R.color.yellow))
+            "ECO" -> holder.tvBanco.setTextColor(holder.itemView.context.getColor(R.color.red))
+            "SOL" -> holder.tvBanco.setTextColor(holder.itemView.context.getColor(R.color.purple_200))
+            else -> holder.tvBanco.setTextColor(holder.itemView.context.getColor(R.color.white))
+        }
+
         holder.tvDescripcion.text = noticia.descripcion
+
+        // Optionally set notification icon tint to match bank color if needed
+        holder.ivNotificationIcon?.let {
+            when(noticia.banco) {
+                "BNB" -> it.setColorFilter(holder.itemView.context.getColor(R.color.green_accent))
+                "BISA" -> it.setColorFilter(holder.itemView.context.getColor(R.color.yellow))
+                "ECO" -> it.setColorFilter(holder.itemView.context.getColor(R.color.red))
+                "SOL" -> it.setColorFilter(holder.itemView.context.getColor(R.color.purple_200))
+                else -> it.setColorFilter(holder.itemView.context.getColor(R.color.white))
+            }
+        }
     }
 
     override fun getItemCount() = noticias.size

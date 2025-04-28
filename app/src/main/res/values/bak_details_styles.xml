@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Estilo para los títulos de sección -->
+    <style name="SectionTitle">
+        <item name="android:textSize">16sp</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="android:layout_marginBottom">4dp</item>
+    </style>
+
+    <!-- Estilo para los valores principales -->
+    <style name="PrimaryValue">
+        <item name="android:textSize">18sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="android:layout_marginTop">8dp</item>
+    </style>
+
+    <!-- Estilo para las descripciones -->
+    <style name="Description">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="android:alpha">0.7</item>
+        <item name="android:layout_marginTop">4dp</item>
+    </style>
+
+    <!-- Estilo para los ítems de límites -->
+    <style name="LimitItem">
+        <item name="android:textSize">16sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="android:layout_marginStart">12dp</item>
+    </style>
+
+    <!-- Estilo para las descripciones de límites -->
+    <style name="LimitDescription">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="android:alpha">0.7</item>
+        <item name="android:layout_marginStart">36dp</item>
+    </style>
+
+    <!-- Estilo para los contenedores de sección -->
+    <style name="SectionContainer">
+        <item name="android:paddingHorizontal">16dp</item>
+        <item name="android:paddingVertical">12dp</item>
+        <item name="android:background">#1A2A25</item>
+    </style>
+</resources>
