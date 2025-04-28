@@ -4,6 +4,7 @@ import android.graphics.Color
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.widget.TextView
 import android.widget.Toast
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.components.Legend
@@ -17,12 +18,22 @@ import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 
-class graficoUSDTBOB(private val lineChart: LineChart) {
+class graficoUSDTBOB(private val lineChart: LineChart, private val tvHighestPrice: TextView? = null) {
     private val handler = Handler(Looper.getMainLooper())
     private val binanceEntries = mutableListOf<Entry>()
     private val bitgetEntries = mutableListOf<Entry>()
     private val eldoradoEntries = mutableListOf<Entry>()
     private var timeCounter = 0f
+
+    // Variables para almacenar los precios actuales
+    private var binancePrice = 0f
+    private var bitgetPrice = 0f
+    private var eldoradoPrice = 0f
+
+    // Métodos getter para acceder a los precios desde fuera de la clase
+    fun getBinancePrice(): Float = binancePrice
+    fun getBitgetPrice(): Float = bitgetPrice
+    fun getEldoradoPrice(): Float = eldoradoPrice
 
     init {
         initChart()
@@ -64,16 +75,16 @@ class graficoUSDTBOB(private val lineChart: LineChart) {
             }
 
             description.text = "Precio USDT/BOB (P2P)"
-            description.textSize = 12f // Reducir tamaño de texto
+            description.textSize = 14f // Aumentar ligeramente el tamaño de texto
             description.textColor = Color.WHITE
         }
 
         // Ajustar tamaño de texto en los ejes
         lineChart.axisLeft.apply {
-            textSize = 10f // Texto más pequeño
+            textSize = 12f // Texto ligeramente más grande
             textColor = Color.WHITE
             setDrawGridLines(true)
-            gridColor = Color.WHITE
+            gridColor = Color.DKGRAY // Color más oscuro para las líneas de cuadrícula
             gridLineWidth = 0.5f // Líneas más finas
             axisLineColor = Color.WHITE
             axisLineWidth = 1f // Línea más fina
@@ -81,7 +92,7 @@ class graficoUSDTBOB(private val lineChart: LineChart) {
 
         lineChart.xAxis.apply {
             position = XAxis.XAxisPosition.BOTTOM
-            textSize = 10f // Texto más pequeño
+            textSize = 12f // Texto ligeramente más grande
             textColor = Color.WHITE
             setDrawGridLines(false)
             axisLineColor = Color.WHITE
@@ -89,10 +100,10 @@ class graficoUSDTBOB(private val lineChart: LineChart) {
         }
 
         lineChart.legend.apply {
-            textSize = 12f // Texto más pequeño
+            textSize = 14f // Texto más grande para mejor legibilidad
             textColor = Color.WHITE
             form = Legend.LegendForm.LINE
-            formSize = 10f // Símbolos más pequeños
+            formSize = 12f // Símbolos ligeramente más grandes
             // Colocar la leyenda en la parte superior para ahorrar espacio
             verticalAlignment = Legend.LegendVerticalAlignment.TOP
             horizontalAlignment = Legend.LegendHorizontalAlignment.RIGHT
@@ -106,6 +117,9 @@ class graficoUSDTBOB(private val lineChart: LineChart) {
 
         // Establecer el mínimo visible de puntos
         lineChart.setVisibleXRangeMinimum(6f)
+
+        // Animación más suave
+        lineChart.animateX(1000)
     }
 
     public fun startUpdatingChart() {
@@ -113,9 +127,10 @@ class graficoUSDTBOB(private val lineChart: LineChart) {
         handler.postDelayed(object : Runnable {
             override fun run() {
                 fetchData()
-                handler.postDelayed(this, 1_000)
+                // Cambiamos el intervalo a 3 segundos (3000 milisegundos)
+                handler.postDelayed(this, 5_000)
             }
-        }, 1_000)
+        }, 5_000) // Primer delay también a 3 segundos
     }
 
     public fun fetchData() {
@@ -124,11 +139,13 @@ class graficoUSDTBOB(private val lineChart: LineChart) {
             override fun onResponse(call: Call<Map<String, CryptoMarketData>>, response: Response<Map<String, CryptoMarketData>>) {
                 if (response.isSuccessful && response.body() != null) {
                     response.body()?.let { dataMap ->
-                        val binancePrice = dataMap["binancep2p"]?.ask ?: 0f
-                        val bitgetPrice = dataMap["bitgetp2p"]?.ask ?: 0f
-                        val eldoradoPrice = dataMap["eldoradop2p"]?.ask ?: 0f
+                        binancePrice = dataMap["binancep2p"]?.ask ?: 0f
+                        bitgetPrice = dataMap["bitgetp2p"]?.ask ?: 0f
+                        eldoradoPrice = dataMap["eldoradop2p"]?.ask ?: 0f
+
                         Log.d("graficoUSDTBOB", "Binance: $binancePrice - Bitget: $bitgetPrice - Eldorado: $eldoradoPrice")
                         updateChart(binancePrice, bitgetPrice, eldoradoPrice)
+                        updateHighestPriceLabel()
                     }
                 } else {
                     Toast.makeText(lineChart.context, "Respuesta no exitosa", Toast.LENGTH_SHORT).show()
@@ -141,15 +158,42 @@ class graficoUSDTBOB(private val lineChart: LineChart) {
         })
     }
 
+    private fun updateHighestPriceLabel() {
+        // Actualizar el TextView con el precio más alto
+        tvHighestPrice?.let {
+            val highestPrice: Float
+            val marketName: String
+
+            when {
+                binancePrice >= bitgetPrice && binancePrice >= eldoradoPrice -> {
+                    highestPrice = binancePrice
+                    marketName = "BinanceP2P"
+                }
+                bitgetPrice >= binancePrice && bitgetPrice >= eldoradoPrice -> {
+                    highestPrice = bitgetPrice
+                    marketName = "BitgetP2P"
+                }
+                else -> {
+                    highestPrice = eldoradoPrice
+                    marketName = "ElDoradoP2P"
+                }
+            }
+
+            it.text = "Precio más alto en: $marketName. Precio: ${String.format("%.2f", highestPrice)}"
+        }
+    }
+
     public fun updateChart(binancePrice: Float, bitgetPrice: Float, eldoradoPrice: Float) {
         fun <T> MutableList<T>.limitSize() { if (size >= 10) removeAt(0) }
         binanceEntries.add(Entry(timeCounter, binancePrice)).also { binanceEntries.limitSize() }
         bitgetEntries.add(Entry(timeCounter, bitgetPrice)).also { bitgetEntries.limitSize() }
         eldoradoEntries.add(Entry(timeCounter, eldoradoPrice)).also { eldoradoEntries.limitSize() }
         timeCounter++
+
         val binanceDataSet = createDataSet(binanceEntries, "Binance P2P", Color.YELLOW)
         val bitgetDataSet = createDataSet(bitgetEntries, "Bitget P2P", Color.CYAN)
         val eldoradoDataSet = createDataSet(eldoradoEntries, "Eldorado P2P", Color.rgb(255, 165, 0))
+
         lineChart.data = LineData(binanceDataSet, bitgetDataSet, eldoradoDataSet)
         lineChart.notifyDataSetChanged()
         lineChart.invalidate()
@@ -157,16 +201,26 @@ class graficoUSDTBOB(private val lineChart: LineChart) {
 
     public fun createDataSet(entries: List<Entry>, label: String, color: Int) = LineDataSet(entries, label).apply {
         this.color = color
-        lineWidth = 2f // Línea más delgada
+        lineWidth = 2.5f // Línea ligeramente más gruesa para mejor visibilidad
         setDrawCircles(true)
-        circleRadius = 2f // Círculos más pequeños
-        setDrawValues(false) // No mostrar valores para evitar amontonamiento
-        // Si necesitas mostrar valores, usa:
-        // setDrawValues(true)
-        // valueTextSize = 8f
-        // valueTextColor = Color.WHITE
+        circleRadius = 3f // Círculos ligeramente más grandes
+        circleColors = listOf(color)
+        setDrawValues(true) // Mostrar valores para el último punto
+        valueTextSize = 10f // Tamaño de texto para los valores
+        valueTextColor = color
+
+        // Última entrada con valor visible
+        if (entries.isNotEmpty()) {
+            val lastEntry = entries.last()
+            valueFormatter = LastValueFormatter(entries)
+        }
     }
+
     fun stopUpdating() {
         handler.removeCallbacksAndMessages(null)
+    }
+
+    fun setInfoTextViews(tvBinanceInfo: TextView?, tvBitgetInfo: TextView?, tvEldoradoInfo: TextView?) {
+
     }
 }

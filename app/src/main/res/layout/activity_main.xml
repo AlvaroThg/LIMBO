@@ -215,7 +215,7 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- Historical Chart Section -->
+            <!-- Historical Chart Section - VERSIÓN MEJORADA -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -231,6 +231,7 @@
                     android:padding="16dp">
 
                     <TextView
+                        android:id="@+id/tvChartTitle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Gráfico Histórico"
@@ -239,25 +240,72 @@
                         android:textStyle="bold"
                         android:layout_marginBottom="8dp"/>
 
-                    <LinearLayout
+                    <TextView
+                        android:id="@+id/tvHighestPrice"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
-                        android:layout_marginBottom="8dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="11.43 Bs. / 6.96"
-                            android:textColor="@android:color/white"
-                            android:textSize="14sp"/>
-                    </LinearLayout>
+                        android:text="Precio más alto en: Calculando..."
+                        android:textColor="@android:color/white"
+                        android:textSize="14sp"
+                        android:layout_marginBottom="12dp"/>
 
                     <com.github.mikephil.charting.charts.LineChart
                         android:id="@+id/lineChart"
                         android:layout_width="match_parent"
                         android:layout_height="250dp"/>
+
+                    <!-- Contenedor de etiquetas de precios -->
+                    <LinearLayout
+                        android:id="@+id/pricesContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="12dp">
+
+                        <!-- Binance P2P Label -->
+                        <TextView
+                            android:id="@+id/tvBinanceInfo"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Binance P2P: 14.57 Bs."
+                            android:textColor="#FFEB3B"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:gravity="center"
+                            android:paddingVertical="8dp"
+                            android:background="#222222"/>
+
+                        <!-- Bitget P2P Label -->
+                        <TextView
+                            android:id="@+id/tvBitgetInfo"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Bitget P2P: 14.61 Bs."
+                            android:textColor="#00FFFF"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:gravity="center"
+                            android:paddingVertical="8dp"
+                            android:layout_marginStart="1dp"
+                            android:layout_marginEnd="1dp"
+                            android:background="#222222"/>
+
+                        <!-- Eldorado P2P Label -->
+                        <TextView
+                            android:id="@+id/tvEldoradoInfo"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Eldorado P2P: 14.65 Bs."
+                            android:textColor="#FFA500"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:gravity="center"
+                            android:paddingVertical="8dp"
+                            android:background="#222222"/>
+                    </LinearLayout>
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
         </LinearLayout>

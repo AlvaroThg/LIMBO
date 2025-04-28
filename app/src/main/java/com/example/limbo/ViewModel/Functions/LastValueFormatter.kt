@@ -3,6 +3,10 @@ package com.example.limbo.ViewModel.Functions
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.formatter.ValueFormatter
 
+/**
+ * Formateador personalizado que solo muestra el valor para la última entrada
+ * en un conjunto de datos, dejando las demás entradas sin etiqueta.
+ */
 class LastValueFormatter(
     private val dataSetEntries: List<Entry>
 ) : ValueFormatter() {
@@ -10,7 +14,8 @@ class LastValueFormatter(
     override fun getPointLabel(entry: Entry): String {
         val lastEntry = dataSetEntries.lastOrNull()
         return if (entry == lastEntry) {
-            String.format("%.3f", entry.y)
+            // Formato con 2 decimales para mejor visualización
+            String.format("%.2f", entry.y)
         } else {
             ""
         }

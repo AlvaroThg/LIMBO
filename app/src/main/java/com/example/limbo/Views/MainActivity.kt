@@ -26,13 +26,29 @@ class MainActivity : AppCompatActivity() {
     private lateinit var rankingAdapter: RankingAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
+
+        supportActionBar?.hide()
+
+        // FORZAR status bar color
+        window.statusBarColor = getColor(R.color.black) // o el color que quieras, negro, etc.
+
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // Inicializar los TextViews para información de precios
+        val tvBinanceInfo = findViewById<TextView>(R.id.tvBinanceInfo)
+        val tvBitgetInfo = findViewById<TextView>(R.id.tvBitgetInfo)
+        val tvEldoradoInfo = findViewById<TextView>(R.id.tvEldoradoInfo)
+        val tvHighestPrice = findViewById<TextView>(R.id.tvHighestPrice)
+
         // Initialize the chart
         lineChart = findViewById(R.id.lineChart)
-        graficoUSDTBOB = graficoUSDTBOB(lineChart)
+        // Pasar también la referencia al TextView del precio más alto
+        graficoUSDTBOB = graficoUSDTBOB(lineChart, tvHighestPrice)
         graficoUSDTBOB.initChart()
+
+        // Pasar las referencias a la clase graficoUSDTBOB
+        graficoUSDTBOB.setInfoTextViews(tvBinanceInfo, tvBitgetInfo, tvEldoradoInfo)
 
         // Initialize the news section
         setupNoticias()
@@ -96,14 +112,15 @@ class MainActivity : AppCompatActivity() {
         handler.postDelayed(object : Runnable {
             override fun run() {
                 graficoUSDTBOB.fetchData()
-                handler.postDelayed(this, 1_000)
+                handler.postDelayed(this, 3000) // Actualizar cada 3 segundos
             }
-        }, 1_000)
+        }, 3000)
     }
 
     override fun onDestroy() {
         super.onDestroy()
         handler.removeCallbacksAndMessages(null)
+        graficoUSDTBOB.stopUpdating()
     }
 }
 
