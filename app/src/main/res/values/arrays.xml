@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Lista de fuentes locales (si las tienes descargadas en /res/font/) -->
+    <array name="preloaded_fonts">
+        <item>@font/montserrat</item>
+        <item>@font/montserrat_bold</item>
+        <item>@font/montserrat_medium</item>
+    </array>
+    <string-array name="com_google_android_gms_fonts_certs" />
+</resources>
