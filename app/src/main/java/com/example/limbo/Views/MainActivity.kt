@@ -4,6 +4,8 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.Menu
+import android.view.MenuItem
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -14,7 +16,10 @@ import com.example.limbo.R
 import com.example.limbo.ViewModel.Functions.graficoUSDTBOB
 import com.github.mikephil.charting.charts.LineChart
 import android.widget.TextView
-import androidx.cardview.widget.CardView
+import androidx.recyclerview.widget.RecyclerView.HORIZONTAL
+import com.example.limbo.Model.Services.CryptoChangeMonitorService
+import com.example.limbo.Views.BankCardAdapter
+import com.example.limbo.Views.BankItem
 
 class MainActivity : AppCompatActivity() {
     private lateinit var lineChart: LineChart
@@ -22,20 +27,21 @@ class MainActivity : AppCompatActivity() {
     private val handler = Handler(Looper.getMainLooper())
 
     // Adapters for the RecyclerViews
+    private lateinit var bankAdapter: BankCardAdapter
     private lateinit var noticiasAdapter: NoticiasAdapter
     private lateinit var rankingAdapter: RankingAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
-
+        // Hide action bar
         supportActionBar?.hide()
 
-        // FORZAR status bar color
-        window.statusBarColor = getColor(R.color.black) // o el color que quieras, negro, etc.
+        // Force status bar color
+        window.statusBarColor = getColor(R.color.black)
 
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Inicializar los TextViews para información de precios
+        // Initialize TextViews for price information
         val tvBinanceInfo = findViewById<TextView>(R.id.tvBinanceInfo)
         val tvBitgetInfo = findViewById<TextView>(R.id.tvBitgetInfo)
         val tvEldoradoInfo = findViewById<TextView>(R.id.tvEldoradoInfo)
@@ -43,12 +49,16 @@ class MainActivity : AppCompatActivity() {
 
         // Initialize the chart
         lineChart = findViewById(R.id.lineChart)
-        // Pasar también la referencia al TextView del precio más alto
+
+        // Pass the reference to the highest price TextView
         graficoUSDTBOB = graficoUSDTBOB(lineChart, tvHighestPrice)
         graficoUSDTBOB.initChart()
 
-        // Pasar las referencias a la clase graficoUSDTBOB
+        // Pass references to the graficoUSDTBOB class
         graficoUSDTBOB.setInfoTextViews(tvBinanceInfo, tvBitgetInfo, tvEldoradoInfo)
+
+        // Setup bank cards (horizontal scrolling)
+        setupBankCards()
 
         // Initialize the news section
         setupNoticias()
@@ -56,18 +66,50 @@ class MainActivity : AppCompatActivity() {
         // Initialize the bank ranking section
         setupRanking()
 
-        // Set up bank cards
-        setupBankCards()
-
         // Start updating the chart
         startUpdatingChart()
+
+        // Initialize notification service
+        CryptoChangeMonitorService.schedulePriceMonitoring(this)
+    }
+
+    private fun setupBankCards() {
+        val bankList = listOf(
+            BankItem(
+                id = "BNB",
+                shortName = "BNB",
+                fullName = "Banco Nacional de Bolivia",
+                logoResource = R.drawable.logo_bnb,
+                backgroundResource = R.drawable.bank_bnb_background
+            ),
+            BankItem(
+                id = "BISA",
+                shortName = "BISA",
+                fullName = "Banco BISA",
+                logoResource = R.drawable.logo_bisa,
+                backgroundResource = R.drawable.bank_bisa_background
+            ),
+            BankItem(
+                id = "UNION",
+                shortName = "BANCO UNIÓN",
+                fullName = "Banco Unión",
+                logoResource = R.drawable.logo_union,
+                backgroundResource = R.drawable.bank_union_background
+            )
+            // Add more banks as needed
+        )
+
+        val recyclerBanks = findViewById<RecyclerView>(R.id.recyclerBanks)
+        recyclerBanks.layoutManager = LinearLayoutManager(this, HORIZONTAL, false)
+        bankAdapter = BankCardAdapter(this, bankList)
+        recyclerBanks.adapter = bankAdapter
     }
 
     private fun setupNoticias() {
         val recyclerNoticias = findViewById<RecyclerView>(R.id.recyclerNoticias)
         recyclerNoticias.layoutManager = LinearLayoutManager(this)
 
-        // Sample data - this would come from your database
+        // Sample data - this would come from your database or API
         val noticias = listOf(
             Noticia("BNB", "El Banco BNB realizó cambios en la rúbrica de los límites"),
             Noticia("BISA", "El Banco Bisa reanudó las compras por internet para nuevos usuarios"),
@@ -83,7 +125,7 @@ class MainActivity : AppCompatActivity() {
         val recyclerRanking = findViewById<RecyclerView>(R.id.recyclerRanking)
         recyclerRanking.layoutManager = LinearLayoutManager(this)
 
-        // Sample data - this would come from your database
+        // Sample data - this would come from your database or API
         val rankings = listOf(
             RankingItem(1, "BISA", R.drawable.logo_bisa, "Límites Altos"),
             RankingItem(2, "BANCO UNIÓN", R.drawable.logo_union, "Permite Cuentas Nuevas"),
@@ -94,27 +136,30 @@ class MainActivity : AppCompatActivity() {
         recyclerRanking.adapter = rankingAdapter
     }
 
-    private fun setupBankCards() {
-        val cardBNB = findViewById<CardView>(R.id.cardBNB)
-
-        cardBNB.setOnClickListener {
-            // Navigate to BNB details screen
-            val intent = Intent(this, BankDetailsActivity::class.java)
-            intent.putExtra("BANK_ID", "BNB")
-            startActivity(intent)
-        }
-
-        // Add more bank cards as needed
-    }
-
     private fun startUpdatingChart() {
         graficoUSDTBOB.fetchData()
         handler.postDelayed(object : Runnable {
             override fun run() {
                 graficoUSDTBOB.fetchData()
-                handler.postDelayed(this, 3000) // Actualizar cada 3 segundos
+                handler.postDelayed(this, 3000) // Update every 3 seconds
             }
         }, 3000)
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.menu_main, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_settings -> {
+                val intent = Intent(this, SettingsActivity::class.java)
+                startActivity(intent)
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
     }
 
     override fun onDestroy() {
@@ -160,7 +205,7 @@ class NoticiasAdapter(private val noticias: List<Noticia>) :
 
         holder.tvDescripcion.text = noticia.descripcion
 
-        // Optionally set notification icon tint to match bank color if needed
+        // Set notification icon tint to match bank color
         holder.ivNotificationIcon?.let {
             when(noticia.banco) {
                 "BNB" -> it.setColorFilter(holder.itemView.context.getColor(R.color.green_accent))

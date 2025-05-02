@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- res/drawable/bank_bnb_background.xml -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <gradient
+        android:angle="135"
+        android:endColor="#0A3C28"
+        android:startColor="#121212"
+        android:type="linear" />
+    <corners android:radius="16dp" />
+</shape>
