@@ -1,23 +1,38 @@
 package com.example.limbo.Views
 
+import android.Manifest
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.view.Menu
+import android.provider.Settings
+import android.util.Log
 import android.view.LayoutInflater
+import android.view.Menu
 import android.view.MenuItem
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.ImageView
+import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.cardview.widget.CardView
+import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.example.limbo.Model.Services.CryptoChangeMonitorService
 import com.example.limbo.R
 import com.example.limbo.ViewModel.Functions.graficoUSDTBOB
 import com.github.mikephil.charting.charts.LineChart
-import android.widget.TextView
-import androidx.cardview.widget.CardView
-import com.example.limbo.Model.Services.CryptoChangeMonitorService
 
 class MainActivity : AppCompatActivity() {
     private lateinit var lineChart: LineChart
@@ -67,6 +82,50 @@ class MainActivity : AppCompatActivity() {
 
         // Schedule the crypto change monitor service
         CryptoChangeMonitorService.schedulePriceMonitoring(this)
+
+        // Verificar permisos de notificación y configuración del canal
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Para Android 13+, verificar si el permiso de notificación está concedido
+            val hasPermission = ContextCompat.checkSelfPermission(
+                this,
+                android.Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+
+            if (!hasPermission) {
+                // Solicitar permiso si no está concedido
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
+                    1001
+                )
+
+                Log.d("MainActivity", "Solicitando permiso de notificación")
+            } else {
+                Log.d("MainActivity", "Permiso de notificación ya concedido")
+            }
+        }
+
+        // Verificar si existe el canal de notificación
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val channel = notificationManager.getNotificationChannel("crypto_price_channel")
+
+            if (channel == null) {
+                Log.d("MainActivity", "El canal de notificación no existe, creándolo")
+                CryptoChangeMonitorService.createNotificationChannelStatic(this)
+            } else {
+                Log.d("MainActivity", "Canal de notificación existe con importancia: ${channel.importance}")
+
+                // Si el canal existe pero tiene baja importancia, recrearlo
+                if (channel.importance < NotificationManager.IMPORTANCE_DEFAULT) {
+                    Log.d("MainActivity", "Canal de notificación tiene baja importancia, recreando")
+                    notificationManager.deleteNotificationChannel("crypto_price_channel")
+                    CryptoChangeMonitorService.createNotificationChannelStatic(this)
+                }
+            }
+        }
+
+
     }
 
     private fun setupNoticias() {
@@ -134,6 +193,38 @@ class MainActivity : AppCompatActivity() {
                 true
             }
             else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        if (requestCode == 1001) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(this, "Permiso de notificación concedido", Toast.LENGTH_SHORT).show()
+                Log.d("MainActivity", "Permiso de notificación concedido")
+            } else {
+                Toast.makeText(this, "Permiso de notificación denegado", Toast.LENGTH_LONG).show()
+                Log.d("MainActivity", "Permiso de notificación denegado")
+
+                // Mostrar un diálogo explicando por qué las notificaciones son importantes
+                AlertDialog.Builder(this)
+                    .setTitle("Notificaciones Desactivadas")
+                    .setMessage("Sin los permisos de notificación, no podrás recibir alertas cuando cambie el precio de USDT/BOB. Por favor, habilita las notificaciones en la configuración de la aplicación.")
+                    .setPositiveButton("Configuración") { _, _ ->
+                        // Abrir configuración de la aplicación
+                        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                        val uri = Uri.fromParts("package", packageName, null)
+                        intent.data = uri
+                        startActivity(intent)
+                    }
+                    .setNegativeButton("Cancelar", null)
+                    .show()
+            }
         }
     }
 
