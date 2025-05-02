@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory android:title="Notification Settings">
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            android:key="enable_notifications"
+            android:summary="Enable or disable all cryptocurrency price notifications"
+            android:title="Enable Notifications" />
+
+        <EditTextPreference
+            android:defaultValue="15"
+            android:dependency="enable_notifications"
+            android:key="notification_interval"
+            android:summary="How often to check for price changes (in minutes, minimum 15)"
+            android:title="Check Interval"
+            android:inputType="number" />
+
+        <MultiSelectListPreference
+            android:defaultValue="@array/default_exchanges"
+            android:dependency="enable_notifications"
+            android:entries="@array/exchange_names"
+            android:entryValues="@array/exchange_values"
+            android:key="exchanges_to_monitor"
+            android:summary="Select which exchanges to monitor for price changes"
+            android:title="Exchanges to Monitor" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Change Thresholds">
+        <SeekBarPreference
+            android:defaultValue="1"
+            android:dependency="enable_notifications"
+            android:key="small_change_threshold"
+            android:max="5"
+            android:summary="Percentage change to trigger minor notifications"
+            android:title="Small Change Threshold" />
+
+        <SeekBarPreference
+            android:defaultValue="3"
+            android:dependency="enable_notifications"
+            android:key="medium_change_threshold"
+            android:max="10"
+            android:summary="Percentage change to trigger medium notifications"
+            android:title="Medium Change Threshold" />
+
+        <SeekBarPreference
+            android:defaultValue="5"
+            android:dependency="enable_notifications"
+            android:key="large_change_threshold"
+            android:max="15"
+            android:summary="Percentage change to trigger important notifications"
+            android:title="Large Change Threshold" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Notification Types">
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            android:dependency="enable_notifications"
+            android:key="notify_small_changes"
+            android:summary="Get notified about small price changes"
+            android:title="Small Change Notifications" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            android:dependency="enable_notifications"
+            android:key="notify_medium_changes"
+            android:summary="Get notified about medium price changes"
+            android:title="Medium Change Notifications" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            android:dependency="enable_notifications"
+            android:key="notify_large_changes"
+            android:summary="Get notified about large price changes"
+            android:title="Large Change Notifications" />
+    </PreferenceCategory>
+</PreferenceScreen>

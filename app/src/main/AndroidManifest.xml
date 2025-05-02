@@ -37,6 +37,12 @@
             android:exported="false">
 
         </activity>
+
+        <activity
+            android:name=".Views.SettingsActivity"
+            android:label="Settings"
+            android:parentActivityName=".Views.MainActivity" />
+
     </application>
 
 </manifest>

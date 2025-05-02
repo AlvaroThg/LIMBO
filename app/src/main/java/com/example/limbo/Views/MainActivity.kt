@@ -6,6 +6,7 @@ import android.os.Handler
 import android.os.Looper
 import android.view.Menu
 import android.view.LayoutInflater
+import android.view.MenuItem
 import android.view.ViewGroup
 import android.widget.ImageView
 import androidx.appcompat.app.AppCompatActivity
@@ -34,6 +35,7 @@ class MainActivity : AppCompatActivity() {
         window.statusBarColor = getColor(R.color.black)
 
         super.onCreate(savedInstanceState)
+        CryptoChangeMonitorService.schedulePriceMonitoring(this)
         setContentView(R.layout.activity_main)
 
         // Initialize TextViews for price information
@@ -117,6 +119,22 @@ class MainActivity : AppCompatActivity() {
                 handler.postDelayed(this, 3000) // Update every 3 seconds
             }
         }, 3000)
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.menu_main, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_settings -> {
+                val intent = Intent(this, SettingsActivity::class.java)
+                startActivity(intent)
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
     }
 
     override fun onDestroy() {
