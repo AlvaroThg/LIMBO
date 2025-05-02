@@ -7,4 +7,23 @@
         <item>@font/montserrat_medium</item>
     </array>
     <string-array name="com_google_android_gms_fonts_certs" />
+
+    <string-array name="exchange_names">
+        <item>Binance P2P</item>
+        <item>Bitget P2P</item>
+        <item>Eldorado P2P</item>
+    </string-array>
+
+    <string-array name="exchange_values">
+        <item>binancep2p</item>
+        <item>bitgetp2p</item>
+        <item>eldoradop2p</item>
+    </string-array>
+
+    <string-array name="default_exchanges">
+        <item>binancep2p</item>
+        <item>bitgetp2p</item>
+        <item>eldoradop2p</item>
+    </string-array>
+
 </resources>

@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.Menu
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -15,6 +16,7 @@ import com.example.limbo.ViewModel.Functions.graficoUSDTBOB
 import com.github.mikephil.charting.charts.LineChart
 import android.widget.TextView
 import androidx.cardview.widget.CardView
+import com.example.limbo.Model.Services.CryptoChangeMonitorService
 
 class MainActivity : AppCompatActivity() {
     private lateinit var lineChart: LineChart
@@ -24,6 +26,7 @@ class MainActivity : AppCompatActivity() {
     // Adapters for the RecyclerViews
     private lateinit var noticiasAdapter: NoticiasAdapter
     private lateinit var rankingAdapter: RankingAdapter
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
 
@@ -61,6 +64,8 @@ class MainActivity : AppCompatActivity() {
 
         // Start updating the chart
         startUpdatingChart()
+
+        CryptoChangeMonitorService.schedulePriceMonitoring(this)
     }
 
     private fun setupNoticias() {
@@ -129,7 +134,8 @@ data class Noticia(val banco: String, val descripcion: String)
 
 data class RankingItem(val position: Int, val bankName: String, val logoResource: Int, val description: String)
 
-// Adapter for news items
+
+
 class NoticiasAdapter(private val noticias: List<Noticia>) :
     RecyclerView.Adapter<NoticiasAdapter.ViewHolder>() {
 
