@@ -8,6 +8,8 @@ import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
 import android.media.RingtoneManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -43,27 +45,12 @@ class CryptoChangeMonitorService(
         // Flag to detect first run
         private const val KEY_FIRST_RUN = "first_run_completed"
 
-        // Debug flag - set to true to force notifications regardless of threshold
-        private const val DEBUG_FORCE_NOTIFICATIONS = true
+        // Debug flag - set to false in production
+        private const val DEBUG_FORCE_NOTIFICATIONS = false
 
-
-
-        fun schedulePriceMonitoring(context: Context, intervalMinutes: Int = 15) {
-            // Request notification permission for Android 13+
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                try {
-                    if (context is androidx.appcompat.app.AppCompatActivity) {
-                        context.requestPermissions(
-                            arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                            1001
-                        )
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to request notification permission: ${e.message}")
-                }
-            }
-
-            // Create notification channel early
+        fun schedulePriceMonitoring(context: Context, intervalMinutes: Int = 5) {
+            // Ya no solicitar permisos aquí, eso se maneja en MainActivity
+            // Solo crear el canal de notificación
             createNotificationChannelStatic(context)
 
             // Configure work constraints
@@ -97,8 +84,8 @@ class CryptoChangeMonitorService(
         fun createNotificationChannelStatic(context: Context) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val name = "Crypto Price Alerts"
-                val descriptionText = "Notifications for significant changes in USDT/BOB prices"
-                val importance = NotificationManager.IMPORTANCE_HIGH  // Increased importance
+                val descriptionText = "Notificaciones de cambios en precios USDT/BOB"
+                val importance = NotificationManager.IMPORTANCE_DEFAULT  // Reduced importance
                 val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
                     description = descriptionText
                     enableVibration(true)
@@ -127,7 +114,7 @@ class CryptoChangeMonitorService(
                     .setSmallIcon(R.drawable.ic_arrow_up)
                     .setContentTitle("Debug Notification")
                     .setContentText("This is a test to verify notification permissions")
-                    .setPriority(NotificationCompat.PRIORITY_HIGH)
+                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                     .setAutoCancel(true)
                     .setContentIntent(pendingIntent)
 
@@ -141,13 +128,17 @@ class CryptoChangeMonitorService(
         }
     }
 
+    // Variables para evitar spam en los logs
+    private var lastErrorCode = 0
+    private var lastErrorMessage = ""
+
     override suspend fun doWork(): Result {
         return try {
             checkPriceChanges()
 
             // Reschedule the next check after this one completes
             val prefs = PreferenceManager.getDefaultSharedPreferences(context)
-            val intervalMinutes = prefs.getString("notification_interval", "15")?.toIntOrNull() ?: 15
+            val intervalMinutes = prefs.getString("notification_interval", "5")?.toIntOrNull() ?: 5
 
             // Delay next check by the specified interval
             val nextCheckDelay = TimeUnit.MINUTES.toMillis(intervalMinutes.toLong())
@@ -171,13 +162,23 @@ class CryptoChangeMonitorService(
 
             Result.success()
         } catch (e: Exception) {
-            Log.e(TAG, "Error monitoring prices: ${e.message}")
+            val errorMessage = e.message ?: "Unknown error"
+            if (errorMessage != lastErrorMessage) {
+                Log.e(TAG, "Error monitoring prices: $errorMessage")
+                lastErrorMessage = errorMessage
+            }
             Result.retry()
         }
     }
 
     private suspend fun checkPriceChanges() {
         withContext(Dispatchers.IO) {
+            // Verificar si hay conexión a Internet
+            if (!isNetworkAvailable()) {
+                Log.e(TAG, "No Internet connection available. Skipping price check.")
+                return@withContext
+            }
+
             // Check if notifications are enabled in preferences
             val prefs = PreferenceManager.getDefaultSharedPreferences(context)
             val notificationsEnabled = prefs.getBoolean("enable_notifications", true)
@@ -187,149 +188,144 @@ class CryptoChangeMonitorService(
                 return@withContext
             }
 
+            // Verificar si tenemos permisos para notificaciones en Android 13+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val permissionStatus = context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                if (permissionStatus != PackageManager.PERMISSION_GRANTED) {
+                    Log.d(TAG, "No permission for notifications. Skipping price check.")
+                    return@withContext
+                }
+            }
+
             // Get which exchanges to monitor from preferences
             val exchangesToMonitor = prefs.getStringSet("exchanges_to_monitor",
                 setOf("binancep2p", "bitgetp2p", "eldoradop2p")) ?: setOf("binancep2p")
 
-            // Get threshold settings from preferences
-            val smallChangeThreshold = 0.001f  // 0.1% de cambio
-            val mediumChangeThreshold = 0.003f // 0.3% de cambio
-            val largeChangeThreshold = 0.005f  // 0.5% de cambio
+            // Definir un umbral mínimo para evitar notificaciones por micro-fluctuaciones
+            val minChangeThreshold = 0.0001f  // 0.01% de cambio mínimo
 
-            Log.d(TAG, "Thresholds: small=$smallChangeThreshold, medium=$mediumChangeThreshold, large=$largeChangeThreshold")
-
-            val call = RetrofitClient.apiService.getUsdtBobData()
+            Log.d(TAG, "Minimum threshold for notifications: ${minChangeThreshold * 100}%")
 
             try {
-                val response = call.execute()
-                if (response.isSuccessful && response.body() != null) {
-                    val dataMap = response.body()!!
-                    val cryptoPrefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                    val isFirstRun = !cryptoPrefs.getBoolean(KEY_FIRST_RUN, false)
+                val call = RetrofitClient.apiService.getUsdtBobData()
+                try {
+                    val response = call.execute()
+                    if (response.isSuccessful && response.body() != null) {
+                        val dataMap = response.body()!!
+                        val cryptoPrefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                        val isFirstRun = !cryptoPrefs.getBoolean(KEY_FIRST_RUN, false)
 
-                    if (isFirstRun) {
-                        Log.d(TAG, "First run detected - storing initial prices")
-                        cryptoPrefs.edit().putBoolean(KEY_FIRST_RUN, true).apply()
-                    }
-
-                    // Check Binance price if it's in the monitored exchanges
-                    if ("binancep2p" in exchangesToMonitor) {
-                        val binancePrice = dataMap["binancep2p"]?.ask ?: 0f
-                        val lastBinancePrice = cryptoPrefs.getFloat(KEY_BINANCE_LAST_PRICE, 0f)
-                        Log.d(TAG, "Binance: current=$binancePrice, last=$lastBinancePrice")
-
-                        if (!isFirstRun && lastBinancePrice > 0f) {
-                            val percentChange = ((binancePrice - lastBinancePrice) / lastBinancePrice)
-                            Log.d(TAG, "Binance percent change: ${percentChange * 100}%")
-
-                            checkSignificantChange(
-                                "Binance", binancePrice, lastBinancePrice,
-                                smallChangeThreshold, mediumChangeThreshold, largeChangeThreshold
-                            )
-                        } else {
-                            Log.d(TAG, "Skipping Binance notification check (first run or no previous data)")
+                        if (isFirstRun) {
+                            Log.d(TAG, "First run detected - storing initial prices")
+                            cryptoPrefs.edit().putBoolean(KEY_FIRST_RUN, true).apply()
                         }
-                        cryptoPrefs.edit().putFloat(KEY_BINANCE_LAST_PRICE, binancePrice).apply()
-                    }
 
-                    // Check Bitget price if it's in the monitored exchanges
-                    if ("bitgetp2p" in exchangesToMonitor) {
-                        val bitgetPrice = dataMap["bitgetp2p"]?.ask ?: 0f
-                        val lastBitgetPrice = cryptoPrefs.getFloat(KEY_BITGET_LAST_PRICE, 0f)
-                        Log.d(TAG, "Bitget: current=$bitgetPrice, last=$lastBitgetPrice")
+                        // Check Binance price if it's in the monitored exchanges
+                        if ("binancep2p" in exchangesToMonitor) {
+                            val binancePrice = dataMap["binancep2p"]?.ask ?: 0f
+                            val lastBinancePrice = cryptoPrefs.getFloat(KEY_BINANCE_LAST_PRICE, 0f)
+                            Log.d(TAG, "Binance: current=$binancePrice, last=$lastBinancePrice")
 
-                        if (!isFirstRun && lastBitgetPrice > 0f) {
-                            val percentChange = ((bitgetPrice - lastBitgetPrice) / lastBitgetPrice)
-                            Log.d(TAG, "Bitget percent change: ${percentChange * 100}%")
+                            if (!isFirstRun && lastBinancePrice > 0f) {
+                                val percentChange = ((binancePrice - lastBinancePrice) / lastBinancePrice)
+                                val absPercentChange = Math.abs(percentChange)
+                                Log.d(TAG, "Binance percent change: ${percentChange * 100}%")
 
-                            checkSignificantChange(
-                                "Bitget", bitgetPrice, lastBitgetPrice,
-                                smallChangeThreshold, mediumChangeThreshold, largeChangeThreshold
-                            )
-                        } else {
-                            Log.d(TAG, "Skipping Bitget notification check (first run or no previous data)")
+                                // Notificar para cualquier cambio por encima del mínimo
+                                if (absPercentChange >= minChangeThreshold || DEBUG_FORCE_NOTIFICATIONS) {
+                                    val message = "LIM.BO: Binance nuevo precio ${String.format("%.2f", binancePrice)}"
+                                    Log.d(TAG, "Price change detected for Binance: $message")
+                                    sendNotification("Binance", message, binancePrice, "price_update", binancePrice > lastBinancePrice)
+                                }
+                            } else {
+                                Log.d(TAG, "Skipping Binance notification check (first run or no previous data)")
+                            }
+                            cryptoPrefs.edit().putFloat(KEY_BINANCE_LAST_PRICE, binancePrice).apply()
                         }
-                        cryptoPrefs.edit().putFloat(KEY_BITGET_LAST_PRICE, bitgetPrice).apply()
-                    }
 
-                    // Check Eldorado price if it's in the monitored exchanges
-                    if ("eldoradop2p" in exchangesToMonitor) {
-                        val eldoradoPrice = dataMap["eldoradop2p"]?.ask ?: 0f
-                        val lastEldoradoPrice = cryptoPrefs.getFloat(KEY_ELDORADO_LAST_PRICE, 0f)
-                        Log.d(TAG, "Eldorado: current=$eldoradoPrice, last=$lastEldoradoPrice")
+                        // Check Bitget price if it's in the monitored exchanges
+                        if ("bitgetp2p" in exchangesToMonitor) {
+                            val bitgetPrice = dataMap["bitgetp2p"]?.ask ?: 0f
+                            val lastBitgetPrice = cryptoPrefs.getFloat(KEY_BITGET_LAST_PRICE, 0f)
+                            Log.d(TAG, "Bitget: current=$bitgetPrice, last=$lastBitgetPrice")
 
-                        if (!isFirstRun && lastEldoradoPrice > 0f) {
-                            val percentChange = ((eldoradoPrice - lastEldoradoPrice) / lastEldoradoPrice)
-                            Log.d(TAG, "Eldorado percent change: ${percentChange * 100}%")
+                            if (!isFirstRun && lastBitgetPrice > 0f) {
+                                val percentChange = ((bitgetPrice - lastBitgetPrice) / lastBitgetPrice)
+                                val absPercentChange = Math.abs(percentChange)
+                                Log.d(TAG, "Bitget percent change: ${percentChange * 100}%")
 
-                            checkSignificantChange(
-                                "Eldorado", eldoradoPrice, lastEldoradoPrice,
-                                smallChangeThreshold, mediumChangeThreshold, largeChangeThreshold
-                            )
-                        } else {
-                            Log.d(TAG, "Skipping Eldorado notification check (first run or no previous data)")
+                                // Notificar para cualquier cambio por encima del mínimo
+                                if (absPercentChange >= minChangeThreshold || DEBUG_FORCE_NOTIFICATIONS) {
+                                    val message = "LIM.BO: Bitget nuevo precio ${String.format("%.2f", bitgetPrice)}"
+                                    Log.d(TAG, "Price change detected for Bitget: $message")
+                                    sendNotification("Bitget", message, bitgetPrice, "price_update", bitgetPrice > lastBitgetPrice)
+                                }
+                            } else {
+                                Log.d(TAG, "Skipping Bitget notification check (first run or no previous data)")
+                            }
+                            cryptoPrefs.edit().putFloat(KEY_BITGET_LAST_PRICE, bitgetPrice).apply()
                         }
-                        cryptoPrefs.edit().putFloat(KEY_ELDORADO_LAST_PRICE, eldoradoPrice).apply()
+
+                        // Check Eldorado price if it's in the monitored exchanges
+                        if ("eldoradop2p" in exchangesToMonitor) {
+                            val eldoradoPrice = dataMap["eldoradop2p"]?.ask ?: 0f
+                            val lastEldoradoPrice = cryptoPrefs.getFloat(KEY_ELDORADO_LAST_PRICE, 0f)
+                            Log.d(TAG, "Eldorado: current=$eldoradoPrice, last=$lastEldoradoPrice")
+
+                            if (!isFirstRun && lastEldoradoPrice > 0f) {
+                                val percentChange = ((eldoradoPrice - lastEldoradoPrice) / lastEldoradoPrice)
+                                val absPercentChange = Math.abs(percentChange)
+                                Log.d(TAG, "Eldorado percent change: ${percentChange * 100}%")
+
+                                // Notificar para cualquier cambio por encima del mínimo
+                                if (absPercentChange >= minChangeThreshold || DEBUG_FORCE_NOTIFICATIONS) {
+                                    val message = "LIM.BO: Eldorado nuevo precio ${String.format("%.2f", eldoradoPrice)}"
+                                    Log.d(TAG, "Price change detected for Eldorado: $message")
+                                    sendNotification("Eldorado", message, eldoradoPrice, "price_update", eldoradoPrice > lastEldoradoPrice)
+                                }
+                            } else {
+                                Log.d(TAG, "Skipping Eldorado notification check (first run or no previous data)")
+                            }
+                            cryptoPrefs.edit().putFloat(KEY_ELDORADO_LAST_PRICE, eldoradoPrice).apply()
+                        }
+                    } else {
+                        // Registrar el error pero sin spam
+                        if (response.code() != lastErrorCode) {
+                            Log.e(TAG, "Error fetching data: ${response.code()} - ${response.message()}")
+                            lastErrorCode = response.code()
+                        }
                     }
-                } else {
-                    Log.e(TAG, "Error fetching data: ${response.code()} - ${response.message()}")
+                } catch (e: Exception) {
+                    // Registrar el error pero evitar spam
+                    val errorMessage = e.message ?: "Unknown error"
+                    if (errorMessage != lastErrorMessage) {
+                        Log.e(TAG, "Error fetching data: $errorMessage")
+                        lastErrorMessage = errorMessage
+                    }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error fetching data: ${e.message}")
+                // Error al crear el cliente Retrofit o al acceder a la API
+                val errorMessage = e.message ?: "Unknown error"
+                if (errorMessage != lastErrorMessage) {
+                    Log.e(TAG, "Error with Retrofit client: $errorMessage")
+                    lastErrorMessage = errorMessage
+                }
             }
         }
     }
 
-    private fun checkSignificantChange(
-        exchange: String,
-        currentPrice: Float,
-        lastPrice: Float,
-        smallChangeThreshold: Float,
-        mediumChangeThreshold: Float,
-        largeChangeThreshold: Float
-    ) {
-        if (lastPrice == 0f) {
-            Log.d(TAG, "Skipping $exchange - no previous price available")
-            return
-        }  // Skip first execution when we don't have a previous value
-
-        val percentChange = ((currentPrice - lastPrice) / lastPrice)
-        val absPercentChange = Math.abs(percentChange)
-        val isIncrease = currentPrice > lastPrice
-
-        Log.d(TAG, "$exchange percent change: ${percentChange * 100}% (absolute: ${absPercentChange * 100}%)")
-        Log.d(TAG, "Thresholds: small=$smallChangeThreshold, medium=$mediumChangeThreshold, large=$largeChangeThreshold")
-
-        // Debugging flag to force notifications for testing
-        if (DEBUG_FORCE_NOTIFICATIONS) {
-            Log.d(TAG, "DEBUG MODE: Forcing test notification for $exchange")
-            val message = "DEBUG: Test notification for $exchange. Current price: ${String.format("%.2f", currentPrice)}"
-            sendNotification(exchange, message, currentPrice, "large_change", true)
-            return
-        }
-
-        when {
-            absPercentChange >= largeChangeThreshold -> {
-                val direction = if (isIncrease) "increased" else "decreased"
-                val message = "¡ALERTA IMPORTANTE! El precio USDT/BOB en $exchange ha $direction en ${String.format("%.2f", Math.abs(percentChange * 100))}% (de ${String.format("%.2f", lastPrice)} a ${String.format("%.2f", currentPrice)})"
-                Log.d(TAG, "Large change detected for $exchange: $message")
-                sendNotification(exchange, message, currentPrice, "large_change", isIncrease)
-            }
-            absPercentChange >= mediumChangeThreshold -> {
-                val direction = if (isIncrease) "subido" else "bajado"
-                val message = "Cambio notable: El precio USDT/BOB en $exchange ha $direction ${String.format("%.2f", Math.abs(percentChange * 100))}% (de ${String.format("%.2f", lastPrice)} a ${String.format("%.2f", currentPrice)})"
-                Log.d(TAG, "Medium change detected for $exchange: $message")
-                sendNotification(exchange, message, currentPrice, "medium_change", isIncrease)
-            }
-            absPercentChange >= smallChangeThreshold -> {
-                val direction = if (isIncrease) "subido" else "bajado"
-                val message = "Actualización: El precio USDT/BOB en $exchange ha $direction ${String.format("%.2f", Math.abs(percentChange * 100))}% (de ${String.format("%.2f", lastPrice)} a ${String.format("%.2f", currentPrice)})"
-                Log.d(TAG, "Small change detected for $exchange: $message")
-                sendNotification(exchange, message, currentPrice, "small_change", isIncrease)
-            }
-            else -> {
-                Log.d(TAG, "No significant change for $exchange: ${absPercentChange * 100}% (below threshold of ${smallChangeThreshold * 100}%)")
-            }
+    // Función para verificar la conexión a Internet
+    private fun isNetworkAvailable(): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val network = connectivityManager.activeNetwork ?: return false
+            val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+            return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        } else {
+            @Suppress("DEPRECATION")
+            val networkInfo = connectivityManager.activeNetworkInfo ?: return false
+            @Suppress("DEPRECATION")
+            return networkInfo.isConnected
         }
     }
 
@@ -341,19 +337,22 @@ class CryptoChangeMonitorService(
         changeType: String,
         isIncrease: Boolean
     ) {
-        // Check if this type of change notification is enabled
+        // Check if notifications are enabled
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val notificationsEnabled = prefs.getBoolean("enable_notifications", true)
 
-        val specificChangesEnabled = when (changeType) {
-            "small_change" -> prefs.getBoolean("notify_small_changes", true)
-            "medium_change" -> prefs.getBoolean("notify_medium_changes", true)
-            "large_change" -> prefs.getBoolean("notify_large_changes", true)
-            else -> true
+        if (!notificationsEnabled && !DEBUG_FORCE_NOTIFICATIONS) {
+            Log.d(TAG, "Notifications are disabled")
+            return
         }
 
-        if (!specificChangesEnabled && !DEBUG_FORCE_NOTIFICATIONS) {
-            Log.d(TAG, "Notification type $changeType is disabled")
-            return
+        // Verificar si tenemos permisos para notificaciones en Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val permissionStatus = context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+            if (permissionStatus != PackageManager.PERMISSION_GRANTED) {
+                Log.d(TAG, "No permission for notifications. Skipping notification.")
+                return
+            }
         }
 
         createNotificationChannel()
@@ -369,45 +368,30 @@ class CryptoChangeMonitorService(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val soundUri = when (changeType) {
-            "large_change" -> RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-            "medium_change" -> RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-            else -> RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-        }
+        // Usar un sonido estándar para notificaciones
+        val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
 
+        // Icono basado en si el precio subió o bajó
         val icon = if (isIncrease) R.drawable.ic_arrow_up else R.drawable.ic_arrow_down
-
-        // Spanish titles for notifications
-        val title = when (changeType) {
-            "large_change" -> "¡ALERTA! Cambio de precio en $exchange"
-            "medium_change" -> "Cambio notable en $exchange"
-            else -> "Actualización de precio en $exchange"
-        }
 
         val notificationBuilder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(icon)
-            .setContentTitle(title)
+            .setContentTitle("Actualización de Precio")
             .setContentText(message)
             .setStyle(NotificationCompat.BigTextStyle().bigText(message))
-            .setPriority(NotificationCompat.PRIORITY_HIGH) // Always use high priority
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setSound(soundUri)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
 
-        // Add vibration pattern
-        if (changeType == "large_change" || changeType == "medium_change" || DEBUG_FORCE_NOTIFICATIONS) {
-            try {
-                val vibrationPattern = when (changeType) {
-                    "large_change" -> longArrayOf(0, 500, 200, 500, 200, 500)
-                    "medium_change" -> longArrayOf(0, 300, 200, 300)
-                    else -> longArrayOf(0, 200)
-                }
-                notificationBuilder.setVibrate(vibrationPattern)
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to set vibration pattern: ${e.message}")
-            }
+        // Patrón de vibración corto para no molestar tanto
+        try {
+            val vibrationPattern = longArrayOf(0, 100)
+            notificationBuilder.setVibrate(vibrationPattern)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to set vibration pattern: ${e.message}")
         }
 
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -425,12 +409,10 @@ class CryptoChangeMonitorService(
             Log.d(TAG, "Notification sent for $exchange: $message")
 
             // Also try to vibrate the device
-            if (changeType == "large_change" || changeType == "medium_change" || DEBUG_FORCE_NOTIFICATIONS) {
-                try {
-                    vibrateDevice(changeType)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to vibrate: ${e.message}")
-                }
+            try {
+                vibrateDevice("price_update")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to vibrate: ${e.message}")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send notification: ${e.message}")
@@ -441,11 +423,8 @@ class CryptoChangeMonitorService(
     @RequiresPermission(Manifest.permission.VIBRATE)
     private fun vibrateDevice(changeType: String) {
         try {
-            val vibrationPattern = when (changeType) {
-                "large_change" -> longArrayOf(0, 500, 200, 500, 200, 500)
-                "medium_change" -> longArrayOf(0, 300, 200, 300)
-                else -> longArrayOf(0, 200)
-            }
+            // Usar un patrón de vibración corto para no molestar tanto
+            val vibrationPattern = longArrayOf(0, 100)
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
@@ -468,15 +447,15 @@ class CryptoChangeMonitorService(
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val name = "Crypto Price Alerts"
-            val descriptionText = "Notifications for significant changes in USDT/BOB prices"
-            val importance = NotificationManager.IMPORTANCE_HIGH  // Using HIGH importance
+            val descriptionText = "Notificaciones de cambios en precios USDT/BOB"
+            val importance = NotificationManager.IMPORTANCE_DEFAULT
             val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
                 description = descriptionText
                 enableVibration(true)
                 enableLights(true)
-                setShowBadge(true)  // Show badge on app icon
-                lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC  // Show on lock screen
-                vibrationPattern = longArrayOf(0, 500, 200, 500)  // Set default vibration pattern
+                setShowBadge(true)
+                lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
+                vibrationPattern = longArrayOf(0, 100)  // Patrón de vibración más corto
 
                 // Set sound
                 val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)

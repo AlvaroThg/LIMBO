@@ -50,7 +50,10 @@ class MainActivity : AppCompatActivity() {
         window.statusBarColor = getColor(R.color.black)
 
         super.onCreate(savedInstanceState)
-        CryptoChangeMonitorService.schedulePriceMonitoring(this)
+
+        // Verificar permisos de notificación de manera correcta
+        checkNotificationPermission()
+
         setContentView(R.layout.activity_main)
 
         // Initialize TextViews for price information
@@ -80,31 +83,6 @@ class MainActivity : AppCompatActivity() {
         // Start updating the chart
         startUpdatingChart()
 
-        // Schedule the crypto change monitor service
-        CryptoChangeMonitorService.schedulePriceMonitoring(this)
-
-        // Verificar permisos de notificación y configuración del canal
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            // Para Android 13+, verificar si el permiso de notificación está concedido
-            val hasPermission = ContextCompat.checkSelfPermission(
-                this,
-                android.Manifest.permission.POST_NOTIFICATIONS
-            ) == PackageManager.PERMISSION_GRANTED
-
-            if (!hasPermission) {
-                // Solicitar permiso si no está concedido
-                ActivityCompat.requestPermissions(
-                    this,
-                    arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
-                    1001
-                )
-
-                Log.d("MainActivity", "Solicitando permiso de notificación")
-            } else {
-                Log.d("MainActivity", "Permiso de notificación ya concedido")
-            }
-        }
-
         // Verificar si existe el canal de notificación
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -124,8 +102,50 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
 
+    private fun checkNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            when (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)) {
+                PackageManager.PERMISSION_GRANTED -> {
+                    Log.d("MainActivity", "Permiso de notificación ya concedido")
+                    // Iniciar el servicio de monitoreo de precios
+                    CryptoChangeMonitorService.schedulePriceMonitoring(this)
+                }
+                PackageManager.PERMISSION_DENIED -> {
+                    if (shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
+                        // El usuario ya rechazó el permiso anteriormente, mostrar diálogo explicativo
+                        showNotificationPermissionRationale()
+                    } else {
+                        // Primera vez que se solicita o el usuario seleccionó "No volver a preguntar"
+                        ActivityCompat.requestPermissions(
+                            this,
+                            arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                            1001
+                        )
+                    }
+                }
+            }
+        } else {
+            // Para versiones anteriores a Android 13, no se necesita solicitar permiso explícitamente
+            CryptoChangeMonitorService.schedulePriceMonitoring(this)
+        }
+    }
 
+    // Método para mostrar un diálogo explicando por qué se necesitan las notificaciones
+    private fun showNotificationPermissionRationale() {
+        AlertDialog.Builder(this)
+            .setTitle("Notificaciones Desactivadas")
+            .setMessage("Sin los permisos de notificación, no podrás recibir alertas cuando cambie el precio de USDT/BOB. Por favor, habilita las notificaciones en la configuración de la aplicación.")
+            .setPositiveButton("Configuración") { _, _ ->
+                // Abrir configuración de la aplicación
+                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                val uri = Uri.fromParts("package", packageName, null)
+                intent.data = uri
+                startActivity(intent)
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
     }
 
     private fun setupNoticias() {
@@ -205,25 +225,19 @@ class MainActivity : AppCompatActivity() {
 
         if (requestCode == 1001) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(this, "Permiso de notificación concedido", Toast.LENGTH_SHORT).show()
                 Log.d("MainActivity", "Permiso de notificación concedido")
+                // Iniciar el servicio ahora que tenemos permiso
+                CryptoChangeMonitorService.schedulePriceMonitoring(this)
             } else {
-                Toast.makeText(this, "Permiso de notificación denegado", Toast.LENGTH_LONG).show()
                 Log.d("MainActivity", "Permiso de notificación denegado")
 
-                // Mostrar un diálogo explicando por qué las notificaciones son importantes
-                AlertDialog.Builder(this)
-                    .setTitle("Notificaciones Desactivadas")
-                    .setMessage("Sin los permisos de notificación, no podrás recibir alertas cuando cambie el precio de USDT/BOB. Por favor, habilita las notificaciones en la configuración de la aplicación.")
-                    .setPositiveButton("Configuración") { _, _ ->
-                        // Abrir configuración de la aplicación
-                        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-                        val uri = Uri.fromParts("package", packageName, null)
-                        intent.data = uri
-                        startActivity(intent)
-                    }
-                    .setNegativeButton("Cancelar", null)
-                    .show()
+                // Mostrar diálogo explicativo solo si el usuario no seleccionó "No volver a preguntar"
+                if (shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
+                    showNotificationPermissionRationale()
+                } else {
+                    // El usuario seleccionó "No volver a preguntar"
+                    Toast.makeText(this, "Para recibir alertas de precios, activa las notificaciones en Configuración", Toast.LENGTH_LONG).show()
+                }
             }
         }
     }
