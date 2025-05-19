@@ -42,6 +42,7 @@ class MainActivity : AppCompatActivity() {
     // Adapters for the RecyclerViews
     private lateinit var noticiasAdapter: NoticiasAdapter
     private lateinit var rankingAdapter: RankingAdapter
+    private lateinit var bankAdapter: BankCardAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         supportActionBar?.hide()
@@ -56,10 +57,6 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(R.layout.activity_main)
 
-        // Initialize TextViews for price information
-        val tvBinanceInfo = findViewById<TextView>(R.id.tvBinanceInfo)
-        val tvBitgetInfo = findViewById<TextView>(R.id.tvBitgetInfo)
-        val tvEldoradoInfo = findViewById<TextView>(R.id.tvEldoradoInfo)
         val tvHighestPrice = findViewById<TextView>(R.id.tvHighestPrice)
 
         // Initialize the chart
@@ -68,8 +65,6 @@ class MainActivity : AppCompatActivity() {
         graficoUSDTBOB = graficoUSDTBOB(lineChart, tvHighestPrice)
         graficoUSDTBOB.initChart()
 
-        // Pass references to the graficoUSDTBOB class
-        graficoUSDTBOB.setInfoTextViews(tvBinanceInfo, tvBitgetInfo, tvEldoradoInfo)
 
         // Initialize the news section
         setupNoticias()
@@ -77,8 +72,8 @@ class MainActivity : AppCompatActivity() {
         // Initialize the bank ranking section
         setupRanking()
 
-        // Set up bank cards
-        setupBankCards()
+        // Set up bank cards - UPDATED
+        setupBanks()
 
         // Start updating the chart
         startUpdatingChart()
@@ -179,15 +174,37 @@ class MainActivity : AppCompatActivity() {
         recyclerRanking.adapter = rankingAdapter
     }
 
-    private fun setupBankCards() {
-        val cardBNB = findViewById<CardView>(R.id.cardBNB)
+    private fun setupBanks() {
+        val recyclerBanks = findViewById<RecyclerView>(R.id.recyclerBanks)
+        recyclerBanks.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
 
-        cardBNB.setOnClickListener {
-            // Navigate to BNB details screen
-            val intent = Intent(this, BankDetailsActivity::class.java)
-            intent.putExtra("BANK_ID", "BNB")
-            startActivity(intent)
-        }
+        // Data para las tarjetas bancarias
+        val banks = listOf(
+            BankItem(
+                "BNB",
+                "BNB",
+                "Banco Nacional de Bolivia",
+                R.drawable.logo_bnb,
+                R.drawable.bank_bnb_background
+            ),
+            BankItem(
+                "BISA",
+                "BISA",
+                "Banco BISA",
+                R.drawable.logo_bisa,
+                R.drawable.bank_bisa_background
+            ),
+            BankItem(
+                "UNION",
+                "BANCO UNIÓN",
+                "Banco Unión de Bolivia",
+                R.drawable.logo_union,
+                R.drawable.bank_union_background
+            )
+        )
+
+        bankAdapter = BankCardAdapter(this, banks)
+        recyclerBanks.adapter = bankAdapter
     }
 
     private fun startUpdatingChart() {
