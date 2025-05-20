@@ -6,6 +6,7 @@ import com.github.mikephil.charting.formatter.ValueFormatter
 /**
  * Formateador personalizado que solo muestra el valor para la última entrada
  * en un conjunto de datos, dejando las demás entradas sin etiqueta.
+ * Además, mejora el formato visual de los valores.
  */
 class LastValueFormatter(
     private val dataSetEntries: List<Entry>

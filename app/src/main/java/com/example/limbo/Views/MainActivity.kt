@@ -1,16 +1,21 @@
 package com.example.limbo.Views
 
 import android.Manifest
+import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.provider.Settings
 import android.util.Log
 import android.view.LayoutInflater
@@ -31,6 +36,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.limbo.Model.Services.CryptoChangeMonitorService
 import com.example.limbo.R
+import com.example.limbo.ViewModel.Functions.CryptoPriceMarker
 import com.example.limbo.ViewModel.Functions.graficoUSDTBOB
 import com.github.mikephil.charting.charts.LineChart
 
@@ -57,14 +63,31 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(R.layout.activity_main)
 
+        // Obtener referencias a todos los elementos UI
         val tvHighestPrice = findViewById<TextView>(R.id.tvHighestPrice)
+        val tvBinancePrice = findViewById<TextView>(R.id.tvBinancePrice)
+        val tvBitgetPrice = findViewById<TextView>(R.id.tvBitgetPrice)
+        val tvEldoradoPrice = findViewById<TextView>(R.id.tvEldoradoPrice)
 
-        // Initialize the chart
+        // Initialize the chart con todas las referencias
         lineChart = findViewById(R.id.lineChart)
-        // Pass reference to the highest price TextView
-        graficoUSDTBOB = graficoUSDTBOB(lineChart, tvHighestPrice)
-        graficoUSDTBOB.initChart()
 
+        // Configurar un margen para mejorar la visualización
+        lineChart.setExtraOffsets(8f, 16f, 8f, 16f)
+
+        // Inicializar el gráfico con todos los TextViews necesarios
+        graficoUSDTBOB = graficoUSDTBOB(
+            lineChart,
+            tvHighestPrice,
+            tvBinancePrice,
+            tvBitgetPrice,
+            tvEldoradoPrice
+        )
+
+        // Configurar el marcador personalizado
+        val marker = CryptoPriceMarker(this, R.layout.marker_view_price)
+        marker.chartView = lineChart
+        lineChart.marker = marker
 
         // Initialize the news section
         setupNoticias()
@@ -74,9 +97,6 @@ class MainActivity : AppCompatActivity() {
 
         // Set up bank cards - UPDATED
         setupBanks()
-
-        // Start updating the chart
-        startUpdatingChart()
 
         // Verificar si existe el canal de notificación
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -97,6 +117,24 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Reanudar actualizaciones cuando la actividad está visible
+        graficoUSDTBOB.startUpdatingChart()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // Opcional: pausar actualizaciones cuando no está visible
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Limpiar los recursos
+        graficoUSDTBOB.stopUpdating()
+        handler.removeCallbacksAndMessages(null)
     }
 
     private fun checkNotificationPermission() {
@@ -207,16 +245,6 @@ class MainActivity : AppCompatActivity() {
         recyclerBanks.adapter = bankAdapter
     }
 
-    private fun startUpdatingChart() {
-        graficoUSDTBOB.fetchData()
-        handler.postDelayed(object : Runnable {
-            override fun run() {
-                graficoUSDTBOB.fetchData()
-                handler.postDelayed(this, 3000) // Update every 3 seconds
-            }
-        }, 3000)
-    }
-
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_main, menu)
         return true
@@ -257,12 +285,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        handler.removeCallbacksAndMessages(null)
-        graficoUSDTBOB.stopUpdating()
     }
 
     // Data classes for the adapters
