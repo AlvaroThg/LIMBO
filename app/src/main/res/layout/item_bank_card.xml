@@ -1,15 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- res/layout/item_bank_card.xml -->
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/cardBank"
     android:layout_width="280dp"
-    android:layout_height="140dp"
+    android:layout_height="160dp"
     android:layout_marginEnd="12dp"
+    android:clipToPadding="false"
+    android:clipChildren="false"
     app:cardBackgroundColor="#121212"
-    app:cardCornerRadius="16dp"
-    app:cardElevation="4dp">
+    app:cardCornerRadius="20dp"
+    app:cardElevation="6dp"
+    app:strokeColor="#1A2BB461"
+    app:strokeWidth="1dp">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/cardContent"
@@ -17,13 +21,37 @@
         android:layout_height="match_parent"
         android:background="@drawable/bank_card_background">
 
+        <!-- Bank Logo (with elevated card) -->
+
         <!-- Bank Name and Title -->
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/logoContainer"
+            android:layout_width="83dp"
+            android:layout_height="75dp"
+            android:layout_marginTop="16dp"
+            android:layout_marginEnd="20dp"
+            app:cardBackgroundColor="#1A2A25"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="4dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <ImageView
+                android:id="@+id/ivBankLogo"
+                android:layout_width="70dp"
+                android:layout_height="75dp"
+                android:layout_gravity="center"
+                android:contentDescription="Logo del banco"
+                tools:src="@drawable/logo_bnb" />
+        </com.google.android.material.card.MaterialCardView>
+
         <TextView
             android:id="@+id/tvBankName"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:layout_marginTop="16dp"
+            android:layout_marginStart="20dp"
+            android:layout_marginTop="20dp"
             android:fontFamily="@font/montserrat_bold"
             android:text="BNB"
             android:textColor="@android:color/white"
@@ -32,48 +60,54 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
+        <!-- Status Badge -->
         <TextView
             android:id="@+id/tvBankSubtitle"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
+            android:layout_marginStart="20dp"
+            android:layout_marginTop="2dp"
+            android:layout_marginEnd="20dp"
             android:fontFamily="@font/montserrat"
             android:text="Banco Nacional de Bolivia"
             android:textColor="#AAAAAA"
             android:textSize="12sp"
+            app:layout_constraintEnd_toStartOf="@+id/logoContainer"
+            app:layout_constraintHorizontal_bias="0.0"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/tvBankName" />
 
-        <!-- Bank Logo -->
-        <ImageView
-            android:id="@+id/ivBankLogo"
-            android:layout_width="70dp"
-            android:layout_height="70dp"
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="20dp"
             android:layout_marginTop="16dp"
-            android:layout_marginEnd="16dp"
-            android:contentDescription="Logo del banco"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            tools:src="@drawable/logo_bnb" />
+            app:cardBackgroundColor="#1A2BB461"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="0dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/tvBankSubtitle">
+
+        </com.google.android.material.card.MaterialCardView>
 
         <!-- Button -->
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnViewLimits"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:layout_marginStart="16dp"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="20dp"
+            android:layout_marginEnd="20dp"
             android:layout_marginBottom="16dp"
-            android:background="@drawable/bank_button_background"
+            android:backgroundTint="@color/green_accent"
             android:fontFamily="@font/montserrat_medium"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
             android:text="Revisar Límites"
             android:textAllCaps="false"
-            android:textColor="@android:color/white"
-            android:textSize="12sp"
+            android:textColor="@android:color/black"
+            app:cornerRadius="24dp"
             app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-</androidx.cardview.widget.CardView>
+</com.google.android.material.card.MaterialCardView>
