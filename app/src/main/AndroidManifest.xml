@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Permisos existentes -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -16,27 +19,31 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.LIMBO"
         tools:targetApi="31">
+
+        <!-- SPLASH SCREEN como actividad principal -->
         <activity
-            android:name=".Views.MainActivity"
-            android:exported="true">
+            android:name=".Views.SplashActivity"
+            android:exported="true"
+            android:theme="@style/SplashTheme">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
+        <!-- MainActivity ya no es la principal -->
+        <activity
+            android:name=".Views.MainActivity"
+            android:exported="false" />
+
+        <!-- Otras actividades existentes -->
         <activity
             android:name=".Views.BankDetailsActivity"
-            android:exported="false">
-
-        </activity>
+            android:exported="false" />
 
         <activity
             android:name=".Views.GraficoView"
-            android:exported="false">
-
-        </activity>
+            android:exported="false" />
 
         <activity
             android:name=".Views.SettingsActivity"
@@ -44,5 +51,4 @@
             android:parentActivityName=".Views.MainActivity" />
 
     </application>
-
 </manifest>

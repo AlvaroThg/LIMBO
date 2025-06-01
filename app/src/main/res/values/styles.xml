@@ -56,4 +56,11 @@
         <item name="android:textSize">12sp</item>
         <item name="android:textColor">#AAAAAA</item>
     </style>
+
+    <style name="SplashTheme" parent="Theme.MaterialComponents.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowTranslucentStatus">true</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowBackground">@drawable/splash_background</item>
+    </style>
 </resources>

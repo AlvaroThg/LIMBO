@@ -12,6 +12,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.example.limbo.R
+import com.github.mikephil.charting.animation.Easing
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.components.Legend
 import com.github.mikephil.charting.components.LimitLine
@@ -276,8 +277,8 @@ class graficoUSDTBOB(
         }
 
         val animator = ValueAnimator.ofFloat(oldValue, newValue)
-        animator.duration = 1000
-        animator.interpolator = DecelerateInterpolator()
+        animator.duration = 1500  // Duración más larga para animación más suave
+        animator.interpolator = android.view.animation.AccelerateDecelerateInterpolator()  // Interpolador más suave
         animator.addUpdateListener { animation ->
             val animatedValue = animation.animatedValue as Float
             textView.text = "${String.format("%.2f", animatedValue)} BOB"
@@ -289,12 +290,21 @@ class graficoUSDTBOB(
                 textView.setTextColor(Color.RED)
             }
         }
-        animator.start()
 
-        // Volver al color normal después de la animación
-        handler.postDelayed({
-            textView.setTextColor(Color.WHITE)
-        }, 1200)
+        // Añadir listener para el final de la animación
+        animator.addListener(object : android.animation.AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: android.animation.Animator) {
+                // Asegurar que el valor final es exactamente el nuevo valor
+                textView.text = "${String.format("%.2f", newValue)} BOB"
+
+                // Programar el retorno al color normal
+                handler.postDelayed({
+                    textView.setTextColor(Color.WHITE)
+                }, 500)
+            }
+        })
+
+        animator.start()
     }
 
     private fun updateHighestPriceLabel() {
@@ -328,6 +338,10 @@ class graficoUSDTBOB(
             while (size > maxSize) removeAt(0)
         }
 
+        // Guardar la configuración de zoom y posición actual
+        val visibleXRange = lineChart.visibleXRange
+        val centerX = lineChart.lowestVisibleX + (lineChart.visibleXRange / 2f)
+
         // Añadir nuevos puntos al final
         binanceEntries.add(Entry(timeCounter, binancePrice)).also { binanceEntries.limitSize() }
         bitgetEntries.add(Entry(timeCounter, bitgetPrice)).also { bitgetEntries.limitSize() }
@@ -340,35 +354,65 @@ class graficoUSDTBOB(
         // Crear y añadir DataSet para Binance
         if (binanceEntries.isNotEmpty()) {
             val binanceDataSet = createDataSet(binanceEntries, "Binance P2P", binanceColor)
+            // Mejorar suavizado
+            binanceDataSet.mode = LineDataSet.Mode.CUBIC_BEZIER
+            binanceDataSet.cubicIntensity = 0.1f // Menor valor para curvas más suaves
             dataSets.add(binanceDataSet)
         }
 
         // Crear y añadir DataSet para Bitget
         if (bitgetEntries.isNotEmpty()) {
             val bitgetDataSet = createDataSet(bitgetEntries, "Bitget P2P", bitgetColor)
+            // Mejorar suavizado
+            bitgetDataSet.mode = LineDataSet.Mode.CUBIC_BEZIER
+            bitgetDataSet.cubicIntensity = 0.1f
             dataSets.add(bitgetDataSet)
         }
 
         // Crear y añadir DataSet para Eldorado
         if (eldoradoEntries.isNotEmpty()) {
             val eldoradoDataSet = createDataSet(eldoradoEntries, "Eldorado P2P", eldoradoColor)
+            // Mejorar suavizado
+            eldoradoDataSet.mode = LineDataSet.Mode.CUBIC_BEZIER
+            eldoradoDataSet.cubicIntensity = 0.1f
             dataSets.add(eldoradoDataSet)
         }
 
-        // Crear y establecer LineData con todos los sets
+        // Crear LineData con todos los conjuntos
         val lineData = LineData(dataSets)
-        lineChart.data = lineData
 
-        // Asegurar que hay suficientes puntos visibles
-        if (binanceEntries.size > 1) {
-            lineChart.setVisibleXRangeMaximum(max(10f, binanceEntries.size.toFloat()))
-            lineChart.moveViewToX(timeCounter - 1)
+        // Usar caché de dibujo para evitar parpadeo
+        lineChart.setDrawingCacheEnabled(true)
+
+        // Si el gráfico ya tiene datos, animar la transición
+        if (lineChart.data != null && lineChart.data.dataSetCount > 0) {
+            // Actualizar datos existentes con animación suave
+            lineChart.data = lineData
+            lineChart.notifyDataSetChanged()
+
+            // Mantener el zoom y posición anteriores
+            if (visibleXRange > 0) {
+                lineChart.setVisibleXRange(visibleXRange, visibleXRange)
+                lineChart.moveViewToX(centerX)
+            }
+
+
+
+        } else {
+            // Primera vez que se establecen datos
+            lineChart.data = lineData
+            lineChart.invalidate()
+            lineChart.animateXY(1000, 1000)
         }
 
-        // Notificar cambios y animar
-        lineChart.notifyDataSetChanged()
-        lineChart.invalidate()
-        lineChart.animateY(500)
+        // Asegurar suficientes puntos visibles
+        if (binanceEntries.size > 1) {
+            lineChart.setVisibleXRangeMaximum(max(10f, binanceEntries.size.toFloat()))
+            // Solo mover vista a X si es la primera carga
+            if (lineChart.data == null || lineChart.data.dataSetCount == 0) {
+                lineChart.moveViewToX(timeCounter - 1)
+            }
+        }
     }
 
     private fun createDataSet(entries: List<Entry>, label: String, color: Int): LineDataSet {

@@ -381,21 +381,6 @@
                     android:alpha="0.7"
                     android:layout_marginTop="4dp" />
             </LinearLayout>
-
-            <!-- Imagen de tarjeta de fondo al final para mejorar estética -->
-            <FrameLayout
-                android:layout_width="match_parent"
-                android:layout_height="150dp"
-                android:layout_marginTop="16dp">
-
-                <ImageView
-                    android:layout_width="220dp"
-                    android:layout_height="220dp"
-                    android:layout_gravity="end|bottom"
-                    android:src="@drawable/ic_card"
-                    android:alpha="0.15"
-                    app:tint="@color/green_accent" />
-            </FrameLayout>
         </LinearLayout>
     </ScrollView>
 </androidx.constraintlayout.widget.ConstraintLayout>
